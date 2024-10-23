@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Name Matching and Coordinates</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>Match Names and Fill Coordinates in Empty Columns</h1>
+
+    <!-- Upload file Excel untuk data utama -->
+    <label for="dataFile">Upload Excel (Data with Names):</label>
+    <input type="file" id="dataFile" accept=".xlsx, .xls" />
+    <br><br>
+
+    <!-- Input untuk mengganti nama file download -->
+    <label for="filenameInput">Enter Filename for Download:</label>
+    <input type="text" id="filenameInput" placeholder="filled_results.xlsx" />
+    <br><br>
+
+    <!-- Tombol untuk memulai pencocokan -->
+    <button id="matchButton">Match Names and Fill Coordinates</button>
+
+    <!-- Tautan untuk mendownload hasil Excel -->
+    <a id="downloadLink" style="display: none;">Download Filled Results</a>
+
+    <script>
+        document.getElementById('matchButton').addEventListener('click', function () {
+            const dataFileInput = document.getElementById('dataFile');
+
+            if (dataFileInput.files.length === 0) {
+                alert('Please upload the Excel file.');
+                return;
+            }
+
+            const dataFile = dataFileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                
+                // Assuming data is in the first sheet and lookup in the second sheet
+                const dataSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const lookupSheet = workbook.Sheets[workbook.SheetNames[1]];
+
+                const data = XLSX.utils.sheet_to_json(dataSheet, { defval: '' });
+                const lookupData = XLSX.utils.sheet_to_json(lookupSheet, { defval: '' });
+
+                console.log("Data Sheet Loaded:", data);
+                console.log("Lookup Data Loaded:", lookupData);
+
+                // Create a map from the lookup table based on 'Name'
+                const lookupMap = {};
+                lookupData.forEach(row => {
+                    const name = row['A']; // Ensure the 'Name' column matches (Column A in Sheet 2)
+                    const coordinates = row['B']; // Ensure the 'Coordinates' column matches (Column B in Sheet 2)
+                    if (name && coordinates) {
+                        lookupMap[name] = coordinates;
+                    }
+                });
+
+                console.log("Lookup Map Created:", lookupMap);
+
+                // Match and fill 'Coordinates' column based on Name in Column A
+                const filledData = data.map(row => {
+                    const name = row['A']; // Assuming the name is in column A of Sheet 1
+                    // If there is a name and it's found in the lookupMap, fill the 'B' column with coordinates
+                    if (name && lookupMap[name]) {
+                        row['B'] = lookupMap[name]; // Fill column B with the matched coordinates
+                    }
+                    return row;
+                });
+
+                console.log("Filled Data:", filledData);
+
+                // Convert the result to Excel and download
+                const ws = XLSX.utils.json_to_sheet(filledData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Filled Results');
+
+                // Write the workbook and prepare for download
+                const excelFile = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([excelFile], { type: 'application/octet-stream' });
+
+                const downloadLink = document.getElementById('downloadLink');
+                const filenameInput = document.getElementById('filenameInput').value || 'filled_results.xlsx'; // Default filename
+                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.download = filenameInput;
+                downloadLink.style.display = 'block';
+                downloadLink.textContent = 'Download Filled Results';
+            };
+
+            reader.readAsBinaryString(dataFile);
+        });
+    </script>
+</body>
+</html>

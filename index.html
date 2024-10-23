@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUKANG CONVERT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <center>
+    <h1>SEDIA JASA CONVERT</h1>
+    <input type="file" id="kmlFile" accept=".kml" />
+    <button id="convertButton">LANGSUNG AJA BANG</button>
+    <a id="downloadLink" style="display: none;">LEMES BANG</a>
+    </center>
+
+    <script>
+        document.getElementById('convertButton').addEventListener('click', function () {
+            const fileInput = document.getElementById('kmlFile');
+            if (fileInput.files.length === 0) {
+                alert('Please select a KML file.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const kmlText = e.target.result;
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+                
+                // Extract coordinates and names
+                const placemarks = xmlDoc.getElementsByTagName('Placemark');
+                const data = [['Name', 'Coordinates']]; // Excel header
+
+                for (let i = 0; i < placemarks.length; i++) {
+                    const name = placemarks[i].getElementsByTagName('name')[0]?.textContent || 'Unnamed';
+                    const coordinates = placemarks[i].getElementsByTagName('coordinates')[0]?.textContent || 'No Coordinates';
+                    data.push([name, coordinates.trim()]);
+                }
+
+                // Create Excel file
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'KML Data');
+
+                const excelFile = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([excelFile], { type: 'application/octet-stream' });
+
+                // Create a download link
+                const downloadLink = document.getElementById('downloadLink');
+                downloadLink.href = URL.createObjectURL(blob);
+                downloadLink.download = 'kml_to_excel.xlsx';
+                downloadLink.style.display = 'block';
+                downloadLink.textContent = 'Download Excel File';
+            };
+
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>
